@@ -4,4 +4,4 @@ version = "0.1.0"
 authors = ["Adam Chalmers <achalmers@cloudflare.com>"]
 
 [dependencies]
-image = "0.13.0"
+gif = "0.10.0"
