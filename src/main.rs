@@ -9,7 +9,7 @@ fn main() -> Result<(), HTreeError> {
     let bounds: (usize, usize) = (size, size);
     let filename = "htree.gif";
 
-    let p1 = &mut[
+    let p1 = [
         0, 0, 0, 0, 0, 0,
         0, 1, 1, 0, 0, 0,
         0, 1, 1, 0, 0, 0,
@@ -17,7 +17,7 @@ fn main() -> Result<(), HTreeError> {
         0, 0, 0, 1, 1, 0,
         0, 0, 0, 0, 0, 0,
     ];
-    let p2 = &mut[
+    let p2 = [
         0, 0, 0, 0, 0, 0,
         0, 1, 1, 0, 0, 0,
         0, 1, 0, 0, 0, 0,
@@ -25,7 +25,7 @@ fn main() -> Result<(), HTreeError> {
         0, 0, 0, 1, 1, 0,
         0, 0, 0, 0, 0, 0,
     ];
-    let bitmaps: Vec<&mut [u8]> = vec![p1, p2];
+    let bitmaps: Vec<[u8; 36]> = vec![p1, p2];
 
     let _ = write_image(filename, bitmaps, bounds)?;
     Ok(())
@@ -33,7 +33,7 @@ fn main() -> Result<(), HTreeError> {
 
 fn write_image(
     filename: &str, 
-    bitmaps: Vec<&mut [u8]>, 
+    bitmaps: Vec<[u8; 36]>,
     bounds: (usize, usize)
 ) -> Result<(), HTreeError> {
 
@@ -46,7 +46,7 @@ fn write_image(
         let mut frame = Frame::default();
         frame.width = bounds.0 as u16;
         frame.height = bounds.1 as u16;
-        frame.buffer = Cow::Borrowed(&*bitmap);
+        frame.buffer = Cow::Borrowed(&bitmap);
         encoder.write_frame(&frame).unwrap();
     }
 
