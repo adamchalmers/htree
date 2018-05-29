@@ -105,11 +105,13 @@ impl HTreeGenerator {
         }
     }
 
-    // Add one more level to the fractal
+    // Add one more level to the fractal. 
     fn tick(&self) -> HTreeGenerator {
         HTreeGenerator {
             t: self.t + 1,
+            // Lines generated in the previous tick (`newer` lines) are now old.
             older: self.older.union(&self.newer).map(|x| x.to_owned()).collect(),
+            // Make two new lines from each previous tick's lines.
             newer: self.newer.iter().flat_map(|l| l.two_new()).collect(),
         }
     }
@@ -119,6 +121,8 @@ fn main() -> Result<(), HTreeError> {
     let size = 6;
     let bounds: (usize, usize) = (size, size);
     let filename = "htree.gif";
+
+    // Test image drawing
 
     let p1 = [
         0, 0, 0, 0, 0, 0,
@@ -158,7 +162,14 @@ fn write_image(
 ) -> Result<(), HTreeError> {
 
     let mut file = File::create(filename)?;
-    let color_map = &[0xFF, 0xFF, 0xFF, 0xFF, 0xAA, 0]; // Background RGB, then foreground RGB
+    let color_map = 
+        &[ 0xFF // Background R
+         , 0xFF // Background G
+         , 0xFF // Background B
+         , 0xFF // Foreground R
+         , 0xAA // Foreground G
+         , 0    // Foreground B
+         ] ;
     let mut encoder = Encoder::new(&mut file, bounds.0 as u16, bounds.1 as u16, color_map)?;
     encoder.set(Repeat::Infinite).unwrap();
 
