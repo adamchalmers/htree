@@ -8,6 +8,9 @@ use std::fs::File;
 
 const IMGPX: usize = 36;
 
+// -------------------------------------------------------------------------
+// GEOMETRY
+
 #[derive(PartialEq, Eq, Hash, Copy, Clone, Debug)]
 enum Dir {
     H, // Horizontal
@@ -51,11 +54,50 @@ impl Line {
             Dir::V => (self.y2 - self.y1).abs(),
         }
     }
+}
+
+// -------------------------------------------------------------------------
+// HTREE FRACTALS
+
+#[derive(Debug)]
+struct HTree {
+    t: i32,
+    older: HashSet<Line>,
+    newer: HashSet<Line>,
+}
+
+impl HTree {
+    fn new() -> HTree {
+        let mut start: HashSet<Line> = HashSet::new();
+        start.insert(Line {
+            x1: 200,
+            y1: 200,
+            x2: 200,
+            y2: 300,
+        });
+
+        HTree {
+            t: 0,
+            older: HashSet::new(),
+            newer: start,
+        }
+    }
+
+    // Add one more level to the fractal. 
+    fn tick(&self) -> HTree {
+        HTree {
+            t: self.t + 1,
+            // Lines generated in the previous tick (`newer` lines) are now old.
+            older: self.older.union(&self.newer).map(|x| x.to_owned()).collect(),
+            // Make two new lines from each previous tick's lines.
+            newer: self.newer.iter().flat_map(|l| HTree::two_new(*l)).collect(),
+        }
+    }
 
     // Use the H-Tree rules to generate two new lines from this one.
     // Each new line will be perpendicular to the current line and half its height.
     // The original line will bisect each of the two new lines.
-    fn two_new(self) -> Vec<Line> {
+    fn two_new(line: Line) -> Vec<Line> {
 
         fn line_from_center(x: i32, y: i32, dir: Dir, len: i32) -> Line {
             match dir {
@@ -75,85 +117,14 @@ impl Line {
         }
 
         vec! 
-            [ line_from_center(self.x1, self.y1, self.dir().other(), self.len()/2)
-            , line_from_center(self.x2, self.y2, self.dir().other(), self.len()/2)
+            [ line_from_center(line.x1, line.y1, line.dir().other(), line.len()/2)
+            , line_from_center(line.x2, line.y2, line.dir().other(), line.len()/2)
             ]
     }
 }
 
-#[derive(Debug)]
-struct HTreeGenerator {
-    t: i32,
-    older: HashSet<Line>,
-    newer: HashSet<Line>,
-}
-
-impl HTreeGenerator {
-    fn new() -> HTreeGenerator {
-        let mut start: HashSet<Line> = HashSet::new();
-        start.insert(Line {
-            x1: 200,
-            y1: 200,
-            x2: 200,
-            y2: 300,
-        });
-
-        HTreeGenerator {
-            t: 0,
-            older: HashSet::new(),
-            newer: start,
-        }
-    }
-
-    // Add one more level to the fractal. 
-    fn tick(&self) -> HTreeGenerator {
-        HTreeGenerator {
-            t: self.t + 1,
-            // Lines generated in the previous tick (`newer` lines) are now old.
-            older: self.older.union(&self.newer).map(|x| x.to_owned()).collect(),
-            // Make two new lines from each previous tick's lines.
-            newer: self.newer.iter().flat_map(|l| l.two_new()).collect(),
-        }
-    }
-}
-
-fn main() -> Result<(), HTreeError> {
-    let size = 6;
-    let bounds: (usize, usize) = (size, size);
-    let filename = "htree.gif";
-
-    // Test image drawing
-
-    let p1 = [
-        0, 0, 0, 0, 0, 0,
-        0, 1, 1, 0, 0, 0,
-        0, 1, 1, 0, 0, 0,
-        0, 0, 0, 1, 1, 0,
-        0, 0, 0, 1, 1, 0,
-        0, 0, 0, 0, 0, 0,
-    ];
-    let p2 = [
-        0, 0, 0, 0, 0, 0,
-        0, 1, 1, 0, 0, 0,
-        0, 1, 0, 0, 0, 0,
-        0, 0, 0, 0, 1, 0,
-        0, 0, 0, 1, 1, 0,
-        0, 0, 0, 0, 0, 0,
-    ];
-    let bitmaps: Vec<[u8; IMGPX]> = vec![p1, p2];
-    let _ = write_image(filename, bitmaps, bounds)?;
-
-    // Test fractal
-
-    let h0 = HTreeGenerator::new();
-    println!("{:?}", h0);
-    let h1 = h0.tick();
-    println!("{:?}", h1);
-    let h2 = h1.tick();
-    println!("{:?}", h2);
-
-    Ok(())
-}
+// -------------------------------------------------------------------------
+// GIFS
 
 fn write_image(
     filename: &str, 
@@ -184,7 +155,46 @@ fn write_image(
     Ok(())
 }
 
-// Error handling
+// -------------------------------------------------------------------------
+// RUNNING
+
+fn main() -> Result<(), HTreeError> {
+    let size = 6;
+    let bounds: (usize, usize) = (size, size);
+    let filename = "htree.gif";
+
+    // Test image drawing
+
+    let p1 = [
+        0, 0, 0, 0, 0, 0,
+        0, 1, 1, 0, 0, 0,
+        0, 1, 1, 0, 0, 0,
+        0, 0, 0, 1, 1, 0,
+        0, 0, 0, 1, 1, 0,
+        0, 0, 0, 0, 0, 0,
+    ];
+    let p2 = [
+        0, 0, 0, 0, 0, 0,
+        0, 1, 1, 0, 0, 0,
+        0, 1, 0, 0, 0, 0,
+        0, 0, 0, 0, 1, 0,
+        0, 0, 0, 1, 1, 0,
+        0, 0, 0, 0, 0, 0,
+    ];
+    let bitmaps: Vec<[u8; IMGPX]> = vec![p1, p2];
+    let _ = write_image(filename, bitmaps, bounds)?;
+
+    // Test fractal
+
+    let h0 = HTree::new();
+    println!("{:?}", h0);
+    let h1 = h0.tick();
+    println!("{:?}", h1);
+    let h2 = h1.tick();
+    println!("{:?}", h2);
+
+    Ok(())
+}
 
 #[derive(Debug)]
 enum HTreeError {
