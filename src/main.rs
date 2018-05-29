@@ -27,22 +27,26 @@ impl Dir {
 }
 
 #[derive(PartialEq, Eq, Hash, Copy, Clone)]
+struct Point {
+    x: i32,
+    y: i32,
+}
+
+#[derive(PartialEq, Eq, Hash, Copy, Clone)]
 struct Line {
-    x1: i32,
-    y1: i32,
-    x2: i32,
-    y2: i32,
+    p: Point,
+    q: Point,
 }
 
 impl fmt::Debug for Line {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "({},{}).({},{})", self.x1, self.y1, self.x2, self.y2)
+        write!(f, "({},{}).({},{})", self.p.x, self.p.y, self.q.x, self.q.y)
     }
 }
 
 impl Line {
     fn dir(self) -> Dir {
-        if self.x1 == self.x2 {
+        if self.p.x == self.q.x {
             return Dir::V
         }
         Dir::H
@@ -50,8 +54,8 @@ impl Line {
 
     fn len(self) -> i32 {
         match self.dir() {
-            Dir::H => (self.x2 - self.x1).abs(),
-            Dir::V => (self.y2 - self.y1).abs(),
+            Dir::H => (self.q.x - self.p.x).abs(),
+            Dir::V => (self.q.y - self.p.y).abs(),
         }
     }
 }
@@ -70,10 +74,8 @@ impl HTree {
     fn new() -> HTree {
         let mut start: HashSet<Line> = HashSet::new();
         start.insert(Line {
-            x1: 200,
-            y1: 200,
-            x2: 200,
-            y2: 300,
+            p: Point {x: 200, y:200 },
+            q: Point {x: 200, y:300 },
         });
 
         HTree {
@@ -102,23 +104,19 @@ impl HTree {
         fn line_from_center(x: i32, y: i32, dir: Dir, len: i32) -> Line {
             match dir {
                 Dir::H => Line {
-                    x1: x - len,
-                    y1: y,
-                    x2: x + len,
-                    y2: y
+                    p: Point {x: x - len, y: y},
+                    q: Point {x: x + len, y: y},
                 },
                 Dir::V => Line {
-                    x1: x,
-                    y1: y - len,
-                    x2: x,
-                    y2: y + len,
+                    p: Point {x: x, y: y - len},
+                    q: Point {x: x, y: y + len},
                 },
             }
         }
 
         vec! 
-            [ line_from_center(line.x1, line.y1, line.dir().other(), line.len()/2)
-            , line_from_center(line.x2, line.y2, line.dir().other(), line.len()/2)
+            [ line_from_center(line.p.x, line.p.y, line.dir().other(), line.len()/2)
+            , line_from_center(line.q.x, line.q.y, line.dir().other(), line.len()/2)
             ]
     }
 }
