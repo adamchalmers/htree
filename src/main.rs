@@ -32,6 +32,12 @@ struct Point {
     y: i32,
 }
 
+impl fmt::Debug for Point {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "({},{})", self.x, self.y)
+    }
+}
+
 #[derive(PartialEq, Eq, Hash, Copy, Clone)]
 struct Line {
     p: Point,
@@ -40,7 +46,7 @@ struct Line {
 
 impl fmt::Debug for Line {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "({},{}).({},{})", self.p.x, self.p.y, self.q.x, self.q.y)
+        write!(f, "{:?}-{:?}", self.p, self.q)
     }
 }
 
