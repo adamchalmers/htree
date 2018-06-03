@@ -131,10 +131,8 @@ impl HTree {
         let sqrt2 = 2_f64.sqrt();
         let new_len = ((line.len() as f64) / sqrt2) as i32;
 
-        vec!
-            [ Line::new_with_center(line.p, line.dir().other(), new_len)
-            , Line::new_with_center(line.q, line.dir().other(), new_len)
-        ]
+        vec![Line::new_with_center(line.p, line.dir().other(), new_len),
+             Line::new_with_center(line.q, line.dir().other(), new_len)]
     }
 
     fn render(&self) -> [u8; IMGPX] {
@@ -154,22 +152,29 @@ impl HTree {
 // -------------------------------------------------------------------------
 // GIFS
 
-fn write_image(filename: &str, bitmaps: Vec<[u8; IMGPX]>, img_size: usize) -> Result<()> {
-    let mut file = File::create(filename)?;
-    let color_map = 
-        &[ 0xFF, 0xFF, 0xFF // Background RGB
-         , 0xFF, 0xAA, 0    // Foreground RGB
-         ];
-    let mut encoder = Encoder::new(&mut file, img_size as u16, img_size as u16, color_map)?;
+fn create_encoder(file: &mut File, img_size: usize) -> Result<Encoder<&mut File>> {
+    let color_map =
+        &[ 0xFF, 0xFF, 0xFF, // Background RGB
+           0xFF, 0xAA, 0 ];  // Foreground RGB
+
+    let mut encoder: Encoder<&mut File> = Encoder::new(
+        file,
+        img_size as u16,
+        img_size as u16,
+        color_map
+    )?;
     encoder.set(Repeat::Infinite)?;
 
-    for bitmap in bitmaps {
-        let mut frame = Frame::default();
-        frame.width = img_size as u16;
-        frame.height = img_size as u16;
-        frame.buffer = Cow::Borrowed(&bitmap);
-        encoder.write_frame(&frame)?;
-    }
+    Ok(encoder)
+}
+
+fn add_frame(encoder: &mut Encoder<&mut File>, img_size: usize, bitmap: [u8; IMGPX]) -> Result<()> {
+    let mut frame = Frame::default();
+    frame.width = img_size as u16;
+    frame.height = img_size as u16;
+    frame.buffer = Cow::Borrowed(&bitmap);
+
+    encoder.write_frame(&frame)?;
 
     Ok(())
 }
@@ -184,10 +189,13 @@ fn main() -> Result<()> {
         q: Point { x: (width/2.0) as i32, y: (width*0.75) as i32 } 
     });
 
-    let mut bitmaps: Vec<[u8; IMGPX]> = Vec::new();
+    let mut file = File::create(FILENAME)?;
+    let mut encoder = create_encoder(&mut file, IMGWID)?;
+
     for _ in 0..NUM_FRAMES {
-        bitmaps.push(h.render());
+        add_frame(&mut encoder, IMGWID, h.render())?;
         h = h.level_added();
     }
-    write_image(FILENAME, bitmaps, IMGWID)
+
+    Ok(())
 }
