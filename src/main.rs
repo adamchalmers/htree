@@ -112,12 +112,10 @@ impl HTree {
     }
 
     // Use the H-Tree rules to generate two new lines from this one.
-    // Each new line will be perpendicular to the current line and half its height.
-    // The original line will bisect each of the two new lines.
     fn two_new(line: Line) -> Vec<Line> {
 
         impl Line {
-            fn sprout(p: Point, dir: Dir, len: i32) -> Line {
+            fn new_with_center(p: Point, dir: Dir, len: i32) -> Line {
                 match dir {
                     Dir::H => Line {
                         p: Point { x: p.x - len/2, y: p.y },
@@ -135,8 +133,8 @@ impl HTree {
         let new_len = ((line.len() as f64) / sqrt2) as i32;
 
         vec!
-            [ Line::sprout(line.p, line.dir().other(), new_len)
-            , Line::sprout(line.q, line.dir().other(), new_len)
+            [ Line::new_with_center(line.p, line.dir().other(), new_len)
+            , Line::new_with_center(line.q, line.dir().other(), new_len)
         ]
     }
 
