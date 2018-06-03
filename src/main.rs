@@ -1,12 +1,16 @@
 extern crate gif;
+extern crate line_drawing;
 
-use gif::{Frame, Encoder, Repeat, SetParameter};
+use gif::{Encoder, Frame, Repeat, SetParameter};
+use line_drawing::Bresenham;
 use std::borrow::Cow;
 use std::collections::HashSet;
 use std::fmt;
 use std::fs::File;
 
-const IMGPX: usize = 36;
+const IMGPX: usize = 65536;
+const IMGWID: usize = 256;
+const FILENAME: &str = "htree.gif";
 
 // -------------------------------------------------------------------------
 // GEOMETRY
@@ -22,7 +26,7 @@ impl Dir {
         return match self {
             Dir::H => Dir::V,
             Dir::V => Dir::H,
-        }
+        };
     }
 }
 
@@ -64,6 +68,11 @@ impl Line {
             Dir::V => (self.q.y - self.p.y).abs(),
         }
     }
+
+    fn points_along(&self) -> impl Iterator<Item = Point> {
+        let pairs = Bresenham::new((self.p.x, self.p.y), (self.q.x, self.q.y));
+        pairs.map(|(x, y)| Point { x: x, y: y })
+    }
 }
 
 // -------------------------------------------------------------------------
@@ -77,12 +86,9 @@ struct HTree {
 }
 
 impl HTree {
-    fn new() -> HTree {
+    fn new(l: Line) -> HTree {
         let mut start: HashSet<Line> = HashSet::new();
-        start.insert(Line {
-            p: Point {x: 200, y:200 },
-            q: Point {x: 200, y:300 },
-        });
+        start.insert(l);
 
         HTree {
             t: 0,
@@ -91,12 +97,15 @@ impl HTree {
         }
     }
 
-    // Add one more level to the fractal. 
+    // Add one more level to the fractal.
     fn tick(&self) -> HTree {
         HTree {
             t: self.t + 1,
             // Lines generated in the previous tick (`newer` lines) are now old.
-            older: self.older.union(&self.newer).map(|x| x.to_owned()).collect(),
+            older: 
+                self.older.union(&self.newer)
+                .map(|x| x.to_owned())
+                .collect(),
             // Make two new lines from each previous tick's lines.
             newer: self.newer.iter().flat_map(|l| HTree::two_new(*l)).collect(),
         }
@@ -106,24 +115,39 @@ impl HTree {
     // Each new line will be perpendicular to the current line and half its height.
     // The original line will bisect each of the two new lines.
     fn two_new(line: Line) -> Vec<Line> {
-
         fn line_from_center(x: i32, y: i32, dir: Dir, len: i32) -> Line {
             match dir {
                 Dir::H => Line {
-                    p: Point {x: x - len, y: y},
-                    q: Point {x: x + len, y: y},
+                    p: Point { x: x - len/2, y: y },
+                    q: Point { x: x + len/2, y: y },
                 },
                 Dir::V => Line {
-                    p: Point {x: x, y: y - len},
-                    q: Point {x: x, y: y + len},
+                    p: Point { x: x, y: y - len/2 },
+                    q: Point { x: x, y: y + len/2 },
                 },
             }
         }
 
-        vec! 
-            [ line_from_center(line.p.x, line.p.y, line.dir().other(), line.len()/2)
-            , line_from_center(line.q.x, line.q.y, line.dir().other(), line.len()/2)
-            ]
+        let sqrt2 = 2_f64.sqrt();
+        let new_len = ((line.len() as f64) / sqrt2) as i32;
+
+        vec!
+            [ line_from_center(line.p.x, line.p.y, line.dir().other(), new_len)
+            , line_from_center(line.q.x, line.q.y, line.dir().other(), new_len)
+        ]
+    }
+
+    fn render(&self) -> [u8; IMGPX] {
+        let points = self
+            .older.union(&self.newer)
+            .flat_map(|l| l.points_along());
+
+        let mut canvas: [u8; IMGPX] = [0; IMGPX];
+        for p in points {
+            let pixel = ((p.y * IMGWID as i32) + p.x) as usize;
+            canvas[pixel] = 1;
+        }
+        canvas
     }
 }
 
@@ -131,11 +155,10 @@ impl HTree {
 // GIFS
 
 fn write_image(
-    filename: &str, 
-    bitmaps: Vec<[u8; 36]>,
-    bounds: (usize, usize)
+    filename: &str,
+    bitmaps: Vec<[u8; IMGPX]>,
+    img_size: usize,
 ) -> Result<(), HTreeError> {
-
     let mut file = File::create(filename)?;
     let color_map = 
         &[ 0xFF // Background R
@@ -144,14 +167,14 @@ fn write_image(
          , 0xFF // Foreground R
          , 0xAA // Foreground G
          , 0    // Foreground B
-         ] ;
-    let mut encoder = Encoder::new(&mut file, bounds.0 as u16, bounds.1 as u16, color_map)?;
+         ];
+    let mut encoder = Encoder::new(&mut file, img_size as u16, img_size as u16, color_map)?;
     encoder.set(Repeat::Infinite).unwrap();
 
     for bitmap in bitmaps {
         let mut frame = Frame::default();
-        frame.width = bounds.0 as u16;
-        frame.height = bounds.1 as u16;
+        frame.width = img_size as u16;
+        frame.height = img_size as u16;
         frame.buffer = Cow::Borrowed(&bitmap);
         encoder.write_frame(&frame).unwrap();
     }
@@ -163,39 +186,19 @@ fn write_image(
 // RUNNING
 
 fn main() -> Result<(), HTreeError> {
-    let size = 6;
-    let bounds: (usize, usize) = (size, size);
-    let filename = "htree.gif";
 
-    // Test image drawing
+    let width = IMGWID as f64;
+    let mut h = HTree::new(Line { 
+        p: Point { x: (width/2.0) as i32, y: (width*0.25) as i32 }, 
+        q: Point { x: (width/2.0) as i32, y: (width*0.75) as i32 } 
+    });
 
-    let p1 = [
-        0, 0, 0, 0, 0, 0,
-        0, 1, 1, 0, 0, 0,
-        0, 1, 1, 0, 0, 0,
-        0, 0, 0, 1, 1, 0,
-        0, 0, 0, 1, 1, 0,
-        0, 0, 0, 0, 0, 0,
-    ];
-    let p2 = [
-        0, 0, 0, 0, 0, 0,
-        0, 1, 1, 0, 0, 0,
-        0, 1, 0, 0, 0, 0,
-        0, 0, 0, 0, 1, 0,
-        0, 0, 0, 1, 1, 0,
-        0, 0, 0, 0, 0, 0,
-    ];
-    let bitmaps: Vec<[u8; IMGPX]> = vec![p1, p2];
-    let _ = write_image(filename, bitmaps, bounds)?;
-
-    // Test fractal
-
-    let h0 = HTree::new();
-    println!("{:?}", h0);
-    let h1 = h0.tick();
-    println!("{:?}", h1);
-    let h2 = h1.tick();
-    println!("{:?}", h2);
+    let mut bitmaps: Vec<[u8; IMGPX]> = Vec::new();
+    for _ in 0..10 {
+        bitmaps.push(h.render());
+        h = h.tick();
+    }
+    let _ = write_image(FILENAME, bitmaps, IMGWID)?;
 
     Ok(())
 }
