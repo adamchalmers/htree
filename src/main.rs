@@ -7,10 +7,12 @@ use std::borrow::Cow;
 use std::collections::HashSet;
 use std::fmt;
 use std::fs::File;
+use std::io::Result;
 
 const IMGWID: usize = 256;
 const IMGPX: usize = IMGWID * IMGWID;
 const FILENAME: &str = "htree.gif";
+const NUM_FRAMES: i32 = 10;
 
 // -------------------------------------------------------------------------
 // GEOMETRY
@@ -80,7 +82,6 @@ impl Line {
 
 #[derive(Debug)]
 struct HTree {
-    t: i32,
     older: HashSet<Line>,
     newer: HashSet<Line>,
 }
@@ -91,22 +92,20 @@ impl HTree {
         start.insert(l);
 
         HTree {
-            t: 0,
             older: HashSet::new(),
             newer: start,
         }
     }
 
     // Add one more level to the fractal.
-    fn tick(&self) -> HTree {
+    fn level_added(&self) -> HTree {
         HTree {
-            t: self.t + 1,
-            // Lines generated in the previous tick (`newer` lines) are now old.
+            // Lines generated in the previous level_added (`newer` lines) are now old.
             older: 
                 self.older.union(&self.newer)
                 .map(|x| x.to_owned())
                 .collect(),
-            // Make two new lines from each previous tick's lines.
+            // Make two new lines from each previous level_added's lines.
             newer: self.newer.iter().flat_map(|l| HTree::two_new(*l)).collect(),
         }
     }
@@ -155,25 +154,21 @@ impl HTree {
 // -------------------------------------------------------------------------
 // GIFS
 
-fn write_image(
-    filename: &str,
-    bitmaps: Vec<[u8; IMGPX]>,
-    img_size: usize,
-) -> Result<(), HTreeError> {
+fn write_image(filename: &str, bitmaps: Vec<[u8; IMGPX]>, img_size: usize) -> Result<()> {
     let mut file = File::create(filename)?;
     let color_map = 
         &[ 0xFF, 0xFF, 0xFF // Background RGB
          , 0xFF, 0xAA, 0    // Foreground RGB
          ];
     let mut encoder = Encoder::new(&mut file, img_size as u16, img_size as u16, color_map)?;
-    encoder.set(Repeat::Infinite).unwrap();
+    encoder.set(Repeat::Infinite)?;
 
     for bitmap in bitmaps {
         let mut frame = Frame::default();
         frame.width = img_size as u16;
         frame.height = img_size as u16;
         frame.buffer = Cow::Borrowed(&bitmap);
-        encoder.write_frame(&frame).unwrap();
+        encoder.write_frame(&frame)?;
     }
 
     Ok(())
@@ -182,8 +177,7 @@ fn write_image(
 // -------------------------------------------------------------------------
 // RUNNING
 
-fn main() -> Result<(), HTreeError> {
-
+fn main() -> Result<()> {
     let width = IMGWID as f64;
     let mut h = HTree::new(Line { 
         p: Point { x: (width/2.0) as i32, y: (width*0.25) as i32 }, 
@@ -191,22 +185,9 @@ fn main() -> Result<(), HTreeError> {
     });
 
     let mut bitmaps: Vec<[u8; IMGPX]> = Vec::new();
-    for _ in 0..10 {
+    for _ in 0..NUM_FRAMES {
         bitmaps.push(h.render());
-        h = h.tick();
+        h = h.level_added();
     }
-    let _ = write_image(FILENAME, bitmaps, IMGWID)?;
-
-    Ok(())
-}
-
-#[derive(Debug)]
-enum HTreeError {
-    IOError(std::io::Error),
-}
-
-impl From<std::io::Error> for HTreeError {
-    fn from(err: std::io::Error) -> Self {
-        HTreeError::IOError(err)
-    }
+    write_image(FILENAME, bitmaps, IMGWID)
 }
