@@ -8,8 +8,8 @@ use std::collections::HashSet;
 use std::fmt;
 use std::fs::File;
 
-const IMGPX: usize = 65536;
 const IMGWID: usize = 256;
+const IMGPX: usize = IMGWID * IMGWID;
 const FILENAME: &str = "htree.gif";
 
 // -------------------------------------------------------------------------
@@ -115,16 +115,19 @@ impl HTree {
     // Each new line will be perpendicular to the current line and half its height.
     // The original line will bisect each of the two new lines.
     fn two_new(line: Line) -> Vec<Line> {
-        fn line_from_center(x: i32, y: i32, dir: Dir, len: i32) -> Line {
-            match dir {
-                Dir::H => Line {
-                    p: Point { x: x - len/2, y: y },
-                    q: Point { x: x + len/2, y: y },
-                },
-                Dir::V => Line {
-                    p: Point { x: x, y: y - len/2 },
-                    q: Point { x: x, y: y + len/2 },
-                },
+
+        impl Line {
+            fn sprout(p: Point, dir: Dir, len: i32) -> Line {
+                match dir {
+                    Dir::H => Line {
+                        p: Point { x: p.x - len/2, y: p.y },
+                        q: Point { x: p.x + len/2, y: p.y },
+                    },
+                    Dir::V => Line {
+                        p: Point { x: p.x, y: p.y - len/2 },
+                        q: Point { x: p.x, y: p.y + len/2 },
+                    },
+                }
             }
         }
 
@@ -132,8 +135,8 @@ impl HTree {
         let new_len = ((line.len() as f64) / sqrt2) as i32;
 
         vec!
-            [ line_from_center(line.p.x, line.p.y, line.dir().other(), new_len)
-            , line_from_center(line.q.x, line.q.y, line.dir().other(), new_len)
+            [ Line::sprout(line.p, line.dir().other(), new_len)
+            , Line::sprout(line.q, line.dir().other(), new_len)
         ]
     }
 
@@ -161,12 +164,8 @@ fn write_image(
 ) -> Result<(), HTreeError> {
     let mut file = File::create(filename)?;
     let color_map = 
-        &[ 0xFF // Background R
-         , 0xFF // Background G
-         , 0xFF // Background B
-         , 0xFF // Foreground R
-         , 0xAA // Foreground G
-         , 0    // Foreground B
+        &[ 0xFF, 0xFF, 0xFF // Background RGB
+         , 0xFF, 0xAA, 0    // Foreground RGB
          ];
     let mut encoder = Encoder::new(&mut file, img_size as u16, img_size as u16, color_map)?;
     encoder.set(Repeat::Infinite).unwrap();
