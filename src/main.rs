@@ -152,31 +152,38 @@ impl HTree {
 // -------------------------------------------------------------------------
 // GIFS
 
-fn create_encoder(file: &mut File, img_size: usize) -> Result<Encoder<&mut File>> {
-    let color_map =
-        &[ 0xFF, 0xFF, 0xFF, // Background RGB
-           0xFF, 0xAA, 0 ];  // Foreground RGB
-
-    let mut encoder: Encoder<&mut File> = Encoder::new(
-        file,
-        img_size as u16,
-        img_size as u16,
-        color_map
-    )?;
-    encoder.set(Repeat::Infinite)?;
-
-    Ok(encoder)
+trait HTreeEncoder {
+    fn new(file: File, img_size: usize) -> Result<Encoder<File>>;
+    fn add_frame(&mut self, img_size: usize, bitmap: [u8; IMGPX]) -> Result<()>;
 }
 
-fn add_frame(encoder: &mut Encoder<&mut File>, img_size: usize, bitmap: [u8; IMGPX]) -> Result<()> {
-    let mut frame = Frame::default();
-    frame.width = img_size as u16;
-    frame.height = img_size as u16;
-    frame.buffer = Cow::Borrowed(&bitmap);
+impl HTreeEncoder for Encoder<File> {
+    fn new(file: File, img_size: usize) -> Result<Encoder<File>> {
+        let color_map =
+            &[ 0xFF, 0xFF, 0xFF, // Background RGB
+               0xFF, 0xAA, 0 ];  // Foreground RGB
 
-    encoder.write_frame(&frame)?;
+        let mut encoder: Encoder<File> = Encoder::new(
+            file,
+            img_size as u16,
+            img_size as u16,
+            color_map
+        )?;
+        encoder.set(Repeat::Infinite)?;
 
-    Ok(())
+        Ok(encoder)
+    }
+
+    fn add_frame(&mut self, img_size: usize, bitmap: [u8; IMGPX]) -> Result<()> {
+        let mut frame = Frame::default();
+        frame.width = img_size as u16;
+        frame.height = img_size as u16;
+        frame.buffer = Cow::Borrowed(&bitmap);
+
+        self.write_frame(&frame)?;
+
+        Ok(())
+    }
 }
 
 // -------------------------------------------------------------------------
@@ -189,11 +196,11 @@ fn main() -> Result<()> {
         q: Point { x: (width/2.0) as i32, y: (width*0.75) as i32 } 
     });
 
-    let mut file = File::create(FILENAME)?;
-    let mut encoder = create_encoder(&mut file, IMGWID)?;
+    let file = File::create(FILENAME)?;
+    let mut encoder = <Encoder<File> as HTreeEncoder>::new(file, IMGWID)?;
 
     for _ in 0..NUM_FRAMES {
-        add_frame(&mut encoder, IMGWID, h.render())?;
+        encoder.add_frame(IMGWID, h.render())?;
         h = h.level_added();
     }
 
