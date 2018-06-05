@@ -152,32 +152,38 @@ impl HTree {
 // -------------------------------------------------------------------------
 // GIFS
 
-fn create_encoder(file: &mut File, img_size: usize) -> Result<Encoder<&mut File>> {
-    let color_map =
+struct GifEncoder {
+    encoder: Encoder<File>,
+    img_size: usize,
+}
+
+impl GifEncoder {
+
+    fn new(img_size: usize) -> Result<GifEncoder> {
+        let color_map =
         &[ 0xFF, 0xFF, 0xFF, // Background RGB
            0xFF, 0xAA, 0 ];  // Foreground RGB
 
-    let mut encoder: Encoder<&mut File> = Encoder::new(
-        file,
-        img_size as u16,
-        img_size as u16,
-        color_map
-    )?;
-    encoder.set(Repeat::Infinite)?;
+        let f = File::create(FILENAME)?;
+        let mut encoder = Encoder::new(f, img_size as u16, img_size as u16, color_map)?;
+        encoder.set(Repeat::Infinite)?;
+        Ok(GifEncoder {
+            encoder: encoder,
+            img_size: img_size,
+        })
+    }
 
-    Ok(encoder)
+    fn add_frame(&mut self, bitmap: [u8; IMGPX]) -> Result<()> {
+        let mut frame = Frame::default();
+        frame.width = self.img_size as u16;
+        frame.height = self.img_size as u16;
+        frame.buffer = Cow::Borrowed(&bitmap);
+
+        self.encoder.write_frame(&frame)?;
+        Ok(())
+    }
 }
 
-fn add_frame(encoder: &mut Encoder<&mut File>, img_size: usize, bitmap: [u8; IMGPX]) -> Result<()> {
-    let mut frame = Frame::default();
-    frame.width = img_size as u16;
-    frame.height = img_size as u16;
-    frame.buffer = Cow::Borrowed(&bitmap);
-
-    encoder.write_frame(&frame)?;
-
-    Ok(())
-}
 
 // -------------------------------------------------------------------------
 // RUNNING
@@ -189,11 +195,10 @@ fn main() -> Result<()> {
         q: Point { x: (width/2.0) as i32, y: (width*0.75) as i32 } 
     });
 
-    let mut file = File::create(FILENAME)?;
-    let mut encoder = create_encoder(&mut file, IMGWID)?;
+    let mut encoder = GifEncoder::new(IMGWID)?;
 
     for _ in 0..NUM_FRAMES {
-        add_frame(&mut encoder, IMGWID, h.render())?;
+        encoder.add_frame(h.render())?;
         h = h.level_added();
     }
 
