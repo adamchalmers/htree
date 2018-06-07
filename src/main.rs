@@ -17,21 +17,6 @@ const NUM_FRAMES: i32 = 10;
 // -------------------------------------------------------------------------
 // GEOMETRY
 
-#[derive(PartialEq, Eq, Hash, Copy, Clone, Debug)]
-enum Dir {
-    H, // Horizontal
-    V, // Vertical
-}
-
-impl Dir {
-    fn other(&self) -> Dir {
-        return match self {
-            Dir::H => Dir::V,
-            Dir::V => Dir::H,
-        };
-    }
-}
-
 #[derive(PartialEq, Eq, Hash, Copy, Clone)]
 struct Point {
     x: i32,
@@ -57,18 +42,17 @@ impl fmt::Debug for Line {
 }
 
 impl Line {
-    fn dir(self) -> Dir {
-        if self.p.x == self.q.x {
-            return Dir::V
-        }
-        Dir::H
+    fn gradient(self) -> f64 {
+        let rise = (self.q.y - self.p.y) as f64;
+        let run = (self.q.x - self.p.x) as f64;
+        rise/run
     }
 
     fn len(self) -> i32 {
-        match self.dir() {
-            Dir::H => (self.q.x - self.p.x).abs(),
-            Dir::V => (self.q.y - self.p.y).abs(),
-        }
+        let x = (self.q.x - self.p.x).abs();
+        let y = (self.q.y - self.p.y).abs();
+        ((x.pow(2) + y.pow(2)) as f64).sqrt() as i32
+
     }
 
     fn points_along(&self) -> impl Iterator<Item = Point> {
@@ -114,25 +98,52 @@ impl HTree {
     fn two_new(line: Line) -> Vec<Line> {
 
         impl Line {
-            fn new_with_center(p: Point, dir: Dir, len: i32) -> Line {
-                match dir {
-                    Dir::H => Line {
-                        p: Point { x: p.x - len/2, y: p.y },
-                        q: Point { x: p.x + len/2, y: p.y },
-                    },
-                    Dir::V => Line {
-                        p: Point { x: p.x, y: p.y - len/2 },
-                        q: Point { x: p.x, y: p.y + len/2 },
-                    },
+            fn new_with_center(p: Point, m: f64, len: f64) -> Line {
+
+                // Special case for vertical lines to avoid dividing by zero
+                if m.is_infinite() {
+                    let l = len.round() as i32;
+                    return Line {
+                        p: Point { x: p.x, y: p.y - l/2 },
+                        q: Point { x: p.x, y: p.y + l/2 },
+                    }
+                }
+
+
+                let x = p.x as f64;
+                let y = p.y as f64;
+                let l = len/2.0;
+                let l2_m2p1_ = (l.powi(2) * (m.powi(2) + 1.0)).sqrt();
+                let m2xpx = (m.powi(2) * x) + x;
+                let m2ypy = (m.powi(2) * y) + y;
+                let m2p1 = m.powi(2) + 1.0;
+
+                let a = l2_m2p1_ + m2xpx;
+                let b = (m*l2_m2p1_) + m2ypy;
+                let c = (-1.0*l2_m2p1_) + m2xpx;
+                let d = (-1.0*m*l2_m2p1_) + m2ypy;
+
+                fn divide(p: f64, q: f64) -> i32 {
+                    (p/q).round() as i32
+                }
+
+                Line { 
+                    p: Point { 
+                        x: divide(a, m2p1), 
+                        y: divide(b, m2p1)
+                    }, 
+                    q: Point { 
+                        x: divide(c, m2p1),
+                        y: divide(d, m2p1)
+                    } 
                 }
             }
         }
 
-        let sqrt2 = 2_f64.sqrt();
-        let new_len = ((line.len() as f64) / sqrt2) as i32;
+        let new_len = (line.len() as f64) / 2_f64.sqrt();
 
-        vec![Line::new_with_center(line.p, line.dir().other(), new_len),
-             Line::new_with_center(line.q, line.dir().other(), new_len)]
+        vec![Line::new_with_center(line.p, -1.0/line.gradient(), new_len),
+             Line::new_with_center(line.q, -1.0/line.gradient(), new_len)]
     }
 
     fn render(&self) -> [u8; IMGPX] {
