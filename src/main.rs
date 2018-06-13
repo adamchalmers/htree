@@ -29,6 +29,12 @@ impl fmt::Debug for Point {
     }
 }
 
+impl Point {
+    fn is_inside(&self, min: i32, max: i32) -> bool {
+        self.x >= min && self.x < max && self.y >= min && self.y < max
+    }
+}
+
 #[derive(PartialEq, Eq, Hash, Copy, Clone)]
 struct Line {
     p: Point,
@@ -147,14 +153,15 @@ impl HTree {
     }
 
     fn render(&self) -> [u8; IMGPX] {
-        let points = self
+        let pixels = self
             .older.union(&self.newer)
-            .flat_map(|l| l.points_along());
+            .flat_map(|l| l.points_along())
+            .filter(|p| p.is_inside(0, IMGWID as i32))
+            .map(|p| ((p.y * IMGWID as i32) + p.x) as usize);
 
         let mut canvas: [u8; IMGPX] = [0; IMGPX];
-        for p in points {
-            let pixel = ((p.y * IMGWID as i32) + p.x) as usize;
-            canvas[pixel] = 1;
+        for p in pixels {
+            canvas[p] = 1;
         }
         canvas
     }
