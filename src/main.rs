@@ -13,6 +13,8 @@ const IMGWID: usize = 256;
 const IMGPX: usize = IMGWID * IMGWID;
 const FILENAME: &str = "htree.gif";
 const NUM_FRAMES: i32 = 10;
+const D_GRADIENT: f64 = 0.0;
+const ANIMATION_DELAY: u16 = 10;
 
 // -------------------------------------------------------------------------
 // GEOMETRY
@@ -146,10 +148,14 @@ impl HTree {
             }
         }
 
+        fn change_gradient(m: f64) -> f64 {
+            D_GRADIENT - 1.0/m 
+        }
+
         let new_len = (line.len() as f64) / 2_f64.sqrt();
 
-        vec![Line::new_with_center(line.p, -1.0/line.gradient(), new_len),
-             Line::new_with_center(line.q, -1.0/line.gradient(), new_len)]
+        vec![Line::new_with_center(line.p, change_gradient(line.gradient()), new_len),
+             Line::new_with_center(line.q, change_gradient(line.gradient()), new_len)]
     }
 
     fn render(&self) -> [u8; IMGPX] {
@@ -173,11 +179,12 @@ impl HTree {
 struct GifEncoder {
     encoder: Encoder<File>,
     img_size: usize,
+    delay: u16,
 }
 
 impl GifEncoder {
 
-    fn new(img_size: usize) -> Result<GifEncoder> {
+    fn new(img_size: usize, delay: u16) -> Result<GifEncoder> {
         let color_map =
         &[ 0xFF, 0xFF, 0xFF, // Background RGB
            0xFF, 0xAA, 0 ];  // Foreground RGB
@@ -188,6 +195,7 @@ impl GifEncoder {
         Ok(GifEncoder {
             encoder: encoder,
             img_size: img_size,
+            delay: delay,
         })
     }
 
@@ -196,6 +204,7 @@ impl GifEncoder {
         frame.width = self.img_size as u16;
         frame.height = self.img_size as u16;
         frame.buffer = Cow::Borrowed(&bitmap);
+        frame.delay = self.delay;
 
         self.encoder.write_frame(&frame)?;
         Ok(())
@@ -213,7 +222,7 @@ fn main() -> Result<()> {
         q: Point { x: (width/2.0) as i32, y: (width*0.75) as i32 } 
     });
 
-    let mut encoder = GifEncoder::new(IMGWID)?;
+    let mut encoder = GifEncoder::new(IMGWID, ANIMATION_DELAY)?;
 
     for _ in 0..NUM_FRAMES {
         encoder.add_frame(h.render())?;
