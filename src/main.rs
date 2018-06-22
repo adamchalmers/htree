@@ -12,8 +12,9 @@ use std::io::Result;
 const IMGWID: usize = 256;
 const IMGPX: usize = IMGWID * IMGWID;
 const FILENAME: &str = "htree.gif";
-const NUM_FRAMES: i32 = 10;
-const D_GRADIENT: f64 = 0.0;
+const NUM_FRAMES: i32 = 30;
+const TURN_SPEED: f64 = 0.05;
+const MAX_LEVELS: i32 = 6;
 const ANIMATION_DELAY: u16 = 10;
 
 // -------------------------------------------------------------------------
@@ -76,34 +77,43 @@ impl Line {
 struct HTree {
     older: HashSet<Line>,
     newer: HashSet<Line>,
+    gradient_change: f64,
 }
 
 impl HTree {
-    fn new(l: Line) -> HTree {
+    fn new(l: Line, gradient_change: f64) -> HTree {
         let mut start: HashSet<Line> = HashSet::new();
         start.insert(l);
 
         HTree {
             older: HashSet::new(),
             newer: start,
+            gradient_change: gradient_change,
         }
     }
 
     // Add one more level to the fractal.
-    fn level_added(&self) -> HTree {
-        HTree {
+    fn level_added(&self, n: i32) -> HTree {
+
+        let mut older: HashSet<Line> = self.older.clone();
+        let mut newer: HashSet<Line> = self.newer.clone();
+
+        for _ in 0..n {
             // Lines generated in the previous level_added (`newer` lines) are now old.
-            older: 
-                self.older.union(&self.newer)
-                .map(|x| x.to_owned())
-                .collect(),
+            older = older.union(&newer).map(|x| x.to_owned()).collect();
             // Make two new lines from each previous level_added's lines.
-            newer: self.newer.iter().flat_map(|l| HTree::two_new(*l)).collect(),
+            newer = newer.iter().flat_map(|l| HTree::two_new(*l, self.gradient_change)).collect()
+        }
+
+        HTree {
+            older: older,
+            newer: newer,
+            gradient_change: self.gradient_change,
         }
     }
 
     // Use the H-Tree rules to generate two new lines from this one.
-    fn two_new(line: Line) -> Vec<Line> {
+    fn two_new(line: Line, gradient_change: f64) -> Vec<Line> {
 
         impl Line {
             fn new_with_center(p: Point, m: f64, len: f64) -> Line {
@@ -148,14 +158,10 @@ impl HTree {
             }
         }
 
-        fn change_gradient(m: f64) -> f64 {
-            D_GRADIENT - 1.0/m 
-        }
-
         let new_len = (line.len() as f64) / 2_f64.sqrt();
 
-        vec![Line::new_with_center(line.p, change_gradient(line.gradient()), new_len),
-             Line::new_with_center(line.q, change_gradient(line.gradient()), new_len)]
+        vec![Line::new_with_center(line.p, gradient_change - 1.0/line.gradient(), new_len),
+             Line::new_with_center(line.q, gradient_change - 1.0/line.gradient(), new_len)]
     }
 
     fn render(&self) -> [u8; IMGPX] {
@@ -217,16 +223,25 @@ impl GifEncoder {
 
 fn main() -> Result<()> {
     let width = IMGWID as f64;
-    let mut h = HTree::new(Line { 
-        p: Point { x: (width/2.0) as i32, y: (width*0.25) as i32 }, 
-        q: Point { x: (width/2.0) as i32, y: (width*0.75) as i32 } 
-    });
-
     let mut encoder = GifEncoder::new(IMGWID, ANIMATION_DELAY)?;
+    let mut bounce = 1;
+    let mut levels = 1;
 
-    for _ in 0..NUM_FRAMES {
+    for i in 0..NUM_FRAMES {
+
+        let gradient_change = TURN_SPEED*(i as f64);
+        let mut h = HTree::new(Line { 
+            p: Point { x: (width/2.0) as i32, y: (width*0.25) as i32 }, 
+            q: Point { x: (width/2.0) as i32, y: (width*0.75) as i32 } 
+        }, gradient_change);
+
+        if levels == MAX_LEVELS || levels == 0 {
+            bounce *= -1;
+        }
+        levels += bounce;
+        println!("{}", levels);
+        h = h.level_added(levels);
         encoder.add_frame(h.render())?;
-        h = h.level_added();
     }
 
     Ok(())
