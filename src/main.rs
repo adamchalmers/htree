@@ -51,72 +51,7 @@ impl fmt::Debug for Line {
 }
 
 impl Line {
-    fn gradient(self) -> f64 {
-        let rise = (self.q.y - self.p.y) as f64;
-        let run = (self.q.x - self.p.x) as f64;
-        rise/run
-    }
-
-    fn len(self) -> i32 {
-        let x = (self.q.x - self.p.x).abs();
-        let y = (self.q.y - self.p.y).abs();
-        ((x.pow(2) + y.pow(2)) as f64).sqrt() as i32
-
-    }
-
-    fn points_along(&self) -> impl Iterator<Item = Point> {
-        let pairs = Bresenham::new((self.p.x, self.p.y), (self.q.x, self.q.y));
-        pairs.map(|(x, y)| Point { x: x, y: y })
-    }
-}
-
-// -------------------------------------------------------------------------
-// HTREE FRACTALS
-
-#[derive(Debug)]
-struct HTree {
-    older: HashSet<Line>,
-    newer: HashSet<Line>,
-    gradient_change: f64,
-}
-
-impl HTree {
-    fn new(l: Line, gradient_change: f64) -> HTree {
-        let mut start: HashSet<Line> = HashSet::new();
-        start.insert(l);
-
-        HTree {
-            older: HashSet::new(),
-            newer: start,
-            gradient_change: gradient_change,
-        }
-    }
-
-    // Add one more level to the fractal.
-    fn level_added(&self, n: i32) -> HTree {
-
-        let mut older: HashSet<Line> = self.older.clone();
-        let mut newer: HashSet<Line> = self.newer.clone();
-
-        for _ in 0..n {
-            // Lines generated in the previous level_added (`newer` lines) are now old.
-            older = older.union(&newer).map(|x| x.to_owned()).collect();
-            // Make two new lines from each previous level_added's lines.
-            newer = newer.iter().flat_map(|l| HTree::two_new(*l, self.gradient_change)).collect()
-        }
-
-        HTree {
-            older: older,
-            newer: newer,
-            gradient_change: self.gradient_change,
-        }
-    }
-
-    // Use the H-Tree rules to generate two new lines from this one.
-    fn two_new(line: Line, gradient_change: f64) -> Vec<Line> {
-
-        impl Line {
-            fn new_with_center(p: Point, m: f64, len: f64) -> Line {
+    fn new_with_center(p: Point, m: f64, len: f64) -> Line {
 
                 // Special case for vertical lines to avoid dividing by zero
                 if m.is_infinite() {
@@ -156,12 +91,75 @@ impl HTree {
                     } 
                 }
             }
+
+    fn gradient(self) -> f64 {
+        let rise = (self.q.y - self.p.y) as f64;
+        let run = (self.q.x - self.p.x) as f64;
+        rise/run
+    }
+
+    fn len(self) -> i32 {
+        let x = (self.q.x - self.p.x).abs();
+        let y = (self.q.y - self.p.y).abs();
+        ((x.pow(2) + y.pow(2)) as f64).sqrt() as i32
+
+    }
+
+    fn points_along(&self) -> impl Iterator<Item = Point> {
+        let pairs = Bresenham::new((self.p.x, self.p.y), (self.q.x, self.q.y));
+        pairs.map(|(x, y)| Point { x: x, y: y })
+    }
+}
+
+// -------------------------------------------------------------------------
+// HTREE FRACTALS
+
+#[derive(Debug)]
+struct HTree {
+    older: HashSet<Line>,
+    newer: HashSet<Line>,
+    gradient_change: f64,
+}
+
+impl HTree {
+    fn new(p: Point, length: i32, gradient_change: f64) -> HTree {
+        let mut start: HashSet<Line> = HashSet::new();
+        start.insert(Line::new_with_center(p, gradient_change, length as f64));
+
+        HTree {
+            older: HashSet::new(),
+            newer: start,
+            gradient_change: gradient_change,
+        }
+    }
+
+    // Add one more level to the fractal.
+    fn level_added(&self, n: i32) -> HTree {
+
+        let mut older: HashSet<Line> = self.older.clone();
+        let mut newer: HashSet<Line> = self.newer.clone();
+
+        for _ in 0..n {
+            // Lines generated in the previous level_added (`newer` lines) are now old.
+            older = older.union(&newer).map(|x| x.to_owned()).collect();
+            // Make two new lines from each previous level_added's lines.
+            newer = newer.iter().flat_map(|l| HTree::two_new(*l, self.gradient_change)).collect()
         }
 
-        let new_len = (line.len() as f64) / 2_f64.sqrt();
+        HTree {
+            older: older,
+            newer: newer,
+            gradient_change: self.gradient_change,
+        }
+    }
 
-        vec![Line::new_with_center(line.p, gradient_change - 1.0/line.gradient(), new_len),
-             Line::new_with_center(line.q, gradient_change - 1.0/line.gradient(), new_len)]
+    // Use the H-Tree rules to generate two new lines from this one.
+    fn two_new(line: Line, gradient_change: f64) -> Vec<Line> {
+        let new_len = (line.len() as f64) / 2_f64.sqrt();
+        vec![
+            Line::new_with_center(line.p, gradient_change - 1.0/line.gradient(), new_len),
+            Line::new_with_center(line.q, gradient_change - 1.0/line.gradient(), new_len)
+            ]
     }
 
     fn render(&self) -> [u8; IMGPX] {
@@ -222,7 +220,7 @@ impl GifEncoder {
 // RUNNING
 
 fn main() -> Result<()> {
-    let width = IMGWID as f64;
+    let width = IMGWID as i32;
     let mut encoder = GifEncoder::new(IMGWID, ANIMATION_DELAY)?;
     let mut bounce = 1;
     let mut levels = 1;
@@ -230,16 +228,16 @@ fn main() -> Result<()> {
     for i in 0..NUM_FRAMES {
 
         let gradient_change = TURN_SPEED*(i as f64);
-        let mut h = HTree::new(Line { 
-            p: Point { x: (width/2.0) as i32, y: (width*0.25) as i32 }, 
-            q: Point { x: (width/2.0) as i32, y: (width*0.75) as i32 } 
-        }, gradient_change);
+        let mut h = HTree::new(
+            Point { x: width/2, y: width/2 },
+            width/2,
+            gradient_change
+        );
 
         if levels == MAX_LEVELS || levels == 0 {
             bounce *= -1;
         }
         levels += bounce;
-        println!("{}", levels);
         h = h.level_added(levels);
         encoder.add_frame(h.render())?;
     }
