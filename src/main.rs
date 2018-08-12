@@ -12,10 +12,10 @@ use std::io::Result;
 const IMGWID: usize = 256;
 const IMGPX: usize = IMGWID * IMGWID;
 const FILENAME: &str = "htree.gif";
-const NUM_FRAMES: i32 = 30;
+const NUM_FRAMES: i32 = 300;
 const TURN_SPEED: f64 = 0.05;
 const MAX_LEVELS: i32 = 6;
-const ANIMATION_DELAY: u16 = 10;
+const ANIMATION_DELAY: u16 = 4;
 
 // -------------------------------------------------------------------------
 // GEOMETRY
@@ -53,44 +53,44 @@ impl fmt::Debug for Line {
 impl Line {
     fn new_with_center(p: Point, m: f64, len: f64) -> Line {
 
-                // Special case for vertical lines to avoid dividing by zero
-                if m.is_infinite() {
-                    let l = len.round() as i32;
-                    return Line {
-                        p: Point { x: p.x, y: p.y - l/2 },
-                        q: Point { x: p.x, y: p.y + l/2 },
-                    }
-                }
-
-
-                let x = p.x as f64;
-                let y = p.y as f64;
-                let l = len/2.0;
-                let l2_m2p1_ = (l.powi(2) * (m.powi(2) + 1.0)).sqrt();
-                let m2xpx = (m.powi(2) * x) + x;
-                let m2ypy = (m.powi(2) * y) + y;
-                let m2p1 = m.powi(2) + 1.0;
-
-                let a = l2_m2p1_ + m2xpx;
-                let b = (m*l2_m2p1_) + m2ypy;
-                let c = (-1.0*l2_m2p1_) + m2xpx;
-                let d = (-1.0*m*l2_m2p1_) + m2ypy;
-
-                fn divide(p: f64, q: f64) -> i32 {
-                    (p/q).round() as i32
-                }
-
-                Line { 
-                    p: Point { 
-                        x: divide(a, m2p1), 
-                        y: divide(b, m2p1)
-                    }, 
-                    q: Point { 
-                        x: divide(c, m2p1),
-                        y: divide(d, m2p1)
-                    } 
-                }
+        // Special case for vertical lines to avoid dividing by zero
+        if m.is_infinite() {
+            let l = len.round() as i32;
+            return Line {
+                p: Point { x: p.x, y: p.y - l/2 },
+                q: Point { x: p.x, y: p.y + l/2 },
             }
+        }
+
+
+        let x = p.x as f64;
+        let y = p.y as f64;
+        let l = len/2.0;
+        let l2_m2p1_ = (l.powi(2) * (m.powi(2) + 1.0)).sqrt();
+        let m2xpx = (m.powi(2) * x) + x;
+        let m2ypy = (m.powi(2) * y) + y;
+        let m2p1 = m.powi(2) + 1.0;
+
+        let a = l2_m2p1_ + m2xpx;
+        let b = (m*l2_m2p1_) + m2ypy;
+        let c = (-1.0*l2_m2p1_) + m2xpx;
+        let d = (-1.0*m*l2_m2p1_) + m2ypy;
+
+        fn divide(p: f64, q: f64) -> i32 {
+            (p/q).round() as i32
+        }
+
+        Line {
+            p: Point {
+                x: divide(a, m2p1),
+                y: divide(b, m2p1)
+            },
+            q: Point {
+                x: divide(c, m2p1),
+                y: divide(d, m2p1)
+            }
+        }
+    }
 
     fn gradient(self) -> f64 {
         let rise = (self.q.y - self.p.y) as f64;
@@ -222,8 +222,8 @@ impl GifEncoder {
 fn main() -> Result<()> {
     let width = IMGWID as i32;
     let mut encoder = GifEncoder::new(IMGWID, ANIMATION_DELAY)?;
-    let mut bounce = 1;
-    let mut levels = 1;
+    let mut d_levels = 1;
+    let mut num_levels = 1;
 
     for i in 0..NUM_FRAMES {
 
@@ -231,14 +231,14 @@ fn main() -> Result<()> {
         let mut h = HTree::new(
             Point { x: width/2, y: width/2 },
             width/2,
-            gradient_change
+            gradient_change.tan()
         );
 
-        if levels == MAX_LEVELS || levels == 0 {
-            bounce *= -1;
+        if num_levels == MAX_LEVELS || num_levels == 0 {
+            d_levels *= -1;
         }
-        levels += bounce;
-        h = h.level_added(levels);
+        num_levels += d_levels;
+        h = h.level_added(num_levels);
         encoder.add_frame(h.render())?;
     }
 
