@@ -25,7 +25,6 @@ impl HTree {
 
     // Add one more level to the fractal.
     pub fn level_added(&self, n: i32) -> HTree {
-
         let mut older: HashSet<Line> = self.older.clone();
         let mut newer: HashSet<Line> = self.newer.clone();
 

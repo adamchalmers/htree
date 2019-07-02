@@ -1,4 +1,3 @@
-
 use line_drawing::Bresenham;
 use std::fmt;
 #[derive(PartialEq, Eq, Hash, Copy, Clone)]
@@ -33,7 +32,6 @@ impl fmt::Debug for Line {
 
 impl Line {
     pub fn new_with_center(p: Point, m: f64, len: f64) -> Line {
-
         // Special case for vertical lines to avoid dividing by zero
         if m.is_infinite() {
             let l = len.round() as i32;
@@ -48,7 +46,6 @@ impl Line {
                 },
             };
         }
-
 
         let x = f64::from(p.x);
         let y = f64::from(p.y);
@@ -89,7 +86,6 @@ impl Line {
         let x = (self.q.x - self.p.x).abs();
         let y = (self.q.y - self.p.y).abs();
         f64::from(x.pow(2) + y.pow(2)).sqrt() as i32
-
     }
 
     pub fn points_along(&self) -> impl Iterator<Item = Point> {

@@ -14,7 +14,6 @@ pub struct GifEncoder {
 }
 
 impl GifEncoder {
-
     pub fn new(img_size: usize, delay: u16) -> Result<GifEncoder> {
         let color_map = &[
             0xFF, 0xFF, 0xFF, // Background RGB
