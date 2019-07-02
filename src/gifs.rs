@@ -3,9 +3,7 @@ use std::borrow::Cow;
 use std::fs::File;
 use std::io::Result;
 
-const IMGPX: usize = IMGWID * IMGWID;
 const FILENAME: &str = "htree.gif";
-const IMGWID: usize = 256;
 
 pub struct GifEncoder {
     encoder: Encoder<File>,
@@ -30,7 +28,7 @@ impl GifEncoder {
         })
     }
 
-    pub fn add_frame(&mut self, bitmap: [u8; IMGPX]) -> Result<()> {
+    pub fn add_frame(&mut self, bitmap: Vec<u8>) -> Result<()> {
         let mut frame = Frame::default();
         frame.width = self.img_size as u16;
         frame.height = self.img_size as u16;

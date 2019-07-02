@@ -10,7 +10,7 @@ mod fractals;
 mod geometry;
 mod gifs;
 
-const IMGWID: usize = 128;
+const IMGWID: usize = 1024;
 const NUM_FRAMES: i32 = 300;
 const TURN_SPEED: f64 = 0.05;
 const MAX_LEVELS: i32 = 6;
@@ -38,7 +38,7 @@ fn main() -> Result<()> {
         }
         num_levels += d_levels;
         h = h.level_added(num_levels);
-        encoder.add_frame(h.render())?;
+        encoder.add_frame(h.render(IMGWID))?;
     }
 
     Ok(())

@@ -1,8 +1,6 @@
 use super::geometry::{Line, Point};
 use std::collections::HashSet;
-
-const IMGWID: usize = 256;
-const IMGPX: usize = IMGWID * IMGWID;
+use std::iter;
 
 #[derive(Debug)]
 pub struct HTree {
@@ -54,15 +52,16 @@ impl HTree {
         ]
     }
 
-    pub fn render(&self) -> [u8; IMGPX] {
+    pub fn render(&self, img_width: usize) -> Vec<u8> {
         let pixels = self
             .older
             .union(&self.newer)
             .flat_map(|l| l.points_along())
-            .filter(|p| p.is_inside(0, IMGWID as i32))
-            .map(|p| ((p.y * IMGWID as i32) + p.x) as usize);
+            .filter(|p| p.is_inside(0, img_width as i32))
+            .map(|p| ((p.y * img_width as i32) + p.x) as usize);
 
-        let mut canvas: [u8; IMGPX] = [0; IMGPX];
+        let num_pixels = img_width * img_width;
+        let mut canvas: Vec<u8> = iter::repeat(0).take(num_pixels).collect();
         for p in pixels {
             canvas[p] = 1;
         }
