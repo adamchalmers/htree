@@ -14,12 +14,12 @@ pub struct HTree {
 impl HTree {
     pub fn new(p: Point, length: i32, gradient_change: f64) -> HTree {
         let mut start: HashSet<Line> = HashSet::new();
-        start.insert(Line::new_with_center(p, gradient_change, length as f64));
+        start.insert(Line::new_with_center(p, gradient_change, f64::from(length)));
 
         HTree {
             older: HashSet::new(),
             newer: start,
-            gradient_change: gradient_change,
+            gradient_change,
         }
     }
 
@@ -40,15 +40,15 @@ impl HTree {
         }
 
         HTree {
-            older: older,
-            newer: newer,
+            older,
+            newer,
             gradient_change: self.gradient_change,
         }
     }
 
     // Use the H-Tree rules to generate two new lines from this one.
     fn two_new(line: Line, gradient_change: f64) -> Vec<Line> {
-        let new_len = (line.len() as f64) / 2_f64.sqrt();
+        let new_len = f64::from(line.len()) / 2_f64.sqrt();
         vec![
             Line::new_with_center(line.p, gradient_change - 1.0 / line.gradient(), new_len),
             Line::new_with_center(line.q, gradient_change - 1.0 / line.gradient(), new_len),

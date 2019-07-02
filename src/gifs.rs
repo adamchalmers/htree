@@ -25,9 +25,9 @@ impl GifEncoder {
         let mut encoder = Encoder::new(f, img_size as u16, img_size as u16, color_map)?;
         encoder.set(Repeat::Infinite)?;
         Ok(GifEncoder {
-            encoder: encoder,
-            img_size: img_size,
-            delay: delay,
+            encoder,
+            img_size,
+            delay,
         })
     }
 

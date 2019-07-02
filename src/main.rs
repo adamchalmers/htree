@@ -10,7 +10,7 @@ mod fractals;
 mod geometry;
 mod gifs;
 
-const IMGWID: usize = 256;
+const IMGWID: usize = 128;
 const NUM_FRAMES: i32 = 300;
 const TURN_SPEED: f64 = 0.05;
 const MAX_LEVELS: i32 = 6;
@@ -23,7 +23,7 @@ fn main() -> Result<()> {
     let mut num_levels = 1;
 
     for i in 0..NUM_FRAMES {
-        let gradient_change = TURN_SPEED * (i as f64);
+        let gradient_change = TURN_SPEED * f64::from(i);
         let mut h = HTree::new(
             Point {
                 x: width / 2,
