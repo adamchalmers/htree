@@ -6,3 +6,4 @@ authors = ["Adam Chalmers <achalmers@cloudflare.com>"]
 [dependencies]
 gif = "0.10.0"
 line_drawing = "0.7.0"
+rayon = "1.1.0"

@@ -1,5 +1,6 @@
 extern crate gif;
 extern crate line_drawing;
+extern crate rayon;
 
 use fractals::HTree;
 use geometry::Point;
