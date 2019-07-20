@@ -28,7 +28,7 @@ impl GifEncoder {
         })
     }
 
-    pub fn add_frame(&mut self, bitmap: Vec<u8>) -> Result<()> {
+    pub fn add_frame(&mut self, bitmap: [u8; crate::NUM_PIXELS]) -> Result<()> {
         let mut frame = Frame::default();
         frame.width = self.img_size as u16;
         frame.height = self.img_size as u16;

@@ -3,7 +3,6 @@ use rayon::prelude::*;
 use std::collections::HashSet;
 use std::iter;
 
-
 #[derive(Debug)]
 pub struct HTree {
     older: HashSet<Line>,
@@ -54,7 +53,7 @@ impl HTree {
         ]
     }
 
-    pub fn render(&self, img_width: usize) -> Vec<u8> {
+    pub fn render(&self, img_width: usize) -> [u8; crate::NUM_PIXELS] {
         let lines: HashSet<_> = self.older.union(&self.newer).collect();
 
         let pixels: HashSet<_> = lines
@@ -67,8 +66,7 @@ impl HTree {
             .map(|p| ((p.y * img_width as i32) + p.x) as usize)
             .collect();
 
-        let num_pixels = img_width * img_width;
-        let mut canvas: Vec<u8> = iter::repeat(0).take(num_pixels).collect();
+        let mut canvas: [u8; crate::NUM_PIXELS] = [0; crate::NUM_PIXELS];
 
         for p in pixels {
             canvas[p] = 1;
