@@ -1,7 +1,6 @@
 use super::geometry::{Line, Point};
 use rayon::prelude::*;
 use std::collections::HashSet;
-use std::iter;
 
 #[derive(Debug)]
 pub struct HTree {
